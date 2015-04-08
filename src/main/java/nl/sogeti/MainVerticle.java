@@ -1,9 +1,7 @@
 package nl.sogeti;
 
 import io.vertx.core.AbstractVerticle;
-import io.vertx.core.AsyncResult;
 import io.vertx.core.DeploymentOptions;
-import io.vertx.core.eventbus.Message;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServer;
 import io.vertx.core.http.HttpServerOptions;
@@ -16,51 +14,37 @@ import io.vertx.ext.sockjs.SockJSServer;
 import io.vertx.ext.sockjs.SockJSServerOptions;
 import io.vertx.ext.sockjs.impl.RouteMatcher;
 
-import java.util.List;
 import java.util.UUID;
 
 public class MainVerticle extends AbstractVerticle {
 
+    private static final int PORT = 8080;
     private static final String PATH = "app";
     private static final String welcomePage = "index.html";
-    private final String channel = UUID.randomUUID().toString();
-    MongoService proxy;
     private static final String MONGO_ADDRESS = UUID.randomUUID().toString();
+    MongoService mongoService;
 
     @Override
     public void start() throws Exception {
-	proxy = setUpMongo();
 	RouteMatcher matcher = getRouteMatcher();
-	vertx.eventBus().consumer("chat", this::saveMessages);
-	vertx.eventBus().consumer(this.channel, this::saveMessages);
-	vertx.eventBus().consumer("history", m -> proxy.find("messages", new JsonObject(), res -> sendMessages(((JsonObject) m.body()).getString("channel"), res)));
-	matcher.matchMethod(HttpMethod.GET, "/api/history", req -> proxy.find("messages", new JsonObject(), res -> req.response().end(new JsonArray(res.result()).toString())));
+	matcher.matchMethod(
+		HttpMethod.GET,
+		"/api/history",
+		request -> request.response().end(
+			new JsonArray().add(new JsonObject().put("name", "vertx").put("text", "hello world!").put("date", System.currentTimeMillis()))
+				.toString()));
 
 	setUpServer(matcher).listen();
     }
 
-    private void saveMessages(Message message) {
-	System.out.println("Saving message: "+message.body().toString());
-	proxy.insert("messages", new JsonObject(message.body().toString()), res -> System.out.println(res.succeeded()));
-    }
-
-    private void sendMessages(String channel, AsyncResult<List<JsonObject>> result) {
-	System.out.println("received history request for channel: "+channel);
-	if(!this.channel.equals(channel)){
-	    for (JsonObject message : result.result()) {
-		    System.out.println("sending message: "+message);
-		    vertx.eventBus().send(channel, message);
-		}    
-	}	
-    }
-
-    private void sendHistoryRequest(AsyncResult<String> result) {
-	System.out.println("send history request for channel: "+this.channel);
-	vertx.eventBus().publish("history", new JsonObject().put("channel", this.channel));
+    private RouteMatcher getRouteMatcher() {
+	RouteMatcher matcher = RouteMatcher.routeMatcher().matchMethod(HttpMethod.GET, "/", req -> req.response().sendFile(PATH + "/" + welcomePage));
+	matcher.matchMethod(HttpMethod.GET, "^\\/" + PATH + "\\/.*", req -> req.response().sendFile(req.path().substring(1)));
+	return matcher;
     }
 
     private HttpServer setUpServer(RouteMatcher matcher) {
-	HttpServer server = vertx.createHttpServer(new HttpServerOptions().setPort(8080)).requestHandler(req -> matcher.accept(req));
+	HttpServer server = vertx.createHttpServer(new HttpServerOptions().setPort(PORT)).requestHandler(req -> matcher.accept(req));
 	SockJSServer.sockJSServer(vertx, server).bridge(new SockJSServerOptions().setPrefix("/eventbus"),
 		new BridgeOptions().addInboundPermitted(new JsonObject()).addOutboundPermitted(new JsonObject()));
 	return server;
@@ -69,13 +53,8 @@ public class MainVerticle extends AbstractVerticle {
 
     private MongoService setUpMongo() {
 	DeploymentOptions options = new DeploymentOptions().setConfig(new JsonObject().put("address", MONGO_ADDRESS));
-	vertx.deployVerticle(new MongoServiceVerticle(), options, this::sendHistoryRequest);
+	vertx.deployVerticle(new MongoServiceVerticle(), options, result -> System.out.println("Mongo deployed: " + result.succeeded()));
 	return MongoService.createEventBusProxy(vertx, MONGO_ADDRESS);
     }
 
-    private RouteMatcher getRouteMatcher() {
-	RouteMatcher matcher = RouteMatcher.routeMatcher().matchMethod(HttpMethod.GET, "/", req -> req.response().sendFile(PATH + "/" + welcomePage));
-	matcher.matchMethod(HttpMethod.GET, "^\\/" + PATH + "\\/.*", req -> req.response().sendFile(req.path().substring(1)));
-	return matcher;
-    }
 }

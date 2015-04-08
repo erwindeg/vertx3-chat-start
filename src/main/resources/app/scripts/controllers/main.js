@@ -11,7 +11,7 @@ angular.module('resourcesApp').controller('MainCtrl',
 			var eb = new vertx.EventBus('http://'+window.location.host+ '/eventbus');
 			eb.onopen = function() {
 				eb.registerHandler('chat', function(message) {
-					$scope.messages.push(message);
+					//TODO: handle message
 					$scope.$apply();
 				});
 			}
