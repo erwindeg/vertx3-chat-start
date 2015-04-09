@@ -18,43 +18,49 @@ import java.util.UUID;
 
 public class MainVerticle extends AbstractVerticle {
 
-    private static final int PORT = 8080;
-    private static final String PATH = "app";
-    private static final String welcomePage = "index.html";
-    private static final String MONGO_ADDRESS = UUID.randomUUID().toString();
-    MongoService mongoService;
+	private static final int PORT = 8080;
+	private static final String PATH = "app";
+	private static final String WELCOME_PAGE = "index.html";
+	private static final String MONGO_ADDRESS = UUID.randomUUID().toString();
 
-    @Override
-    public void start() throws Exception {
-	RouteMatcher matcher = getRouteMatcher();
-	matcher.matchMethod(
-		HttpMethod.GET,
-		"/api/history",
-		request -> request.response().end(
-			new JsonArray().add(new JsonObject().put("name", "vertx").put("text", "hello world!").put("date", System.currentTimeMillis()))
-				.toString()));
+	private static final JsonObject HELLO_WORLD = new JsonObject().put("name", "vertx").put("text", "hello world!").put("date", System.currentTimeMillis());
+		
+		
+	MongoService mongoService;
 
-	setUpServer(matcher).listen();
-    }
+	@Override
+	public void start() throws Exception {
+		RouteMatcher matcher = getRouteMatcher();
+		matcher.matchMethod(
+				HttpMethod.GET,
+				"/api/history",
+				request -> request.response().end(new JsonArray().add(HELLO_WORLD).toString()));
 
-    private RouteMatcher getRouteMatcher() {
-	RouteMatcher matcher = RouteMatcher.routeMatcher().matchMethod(HttpMethod.GET, "/", req -> req.response().sendFile(PATH + "/" + welcomePage));
-	matcher.matchMethod(HttpMethod.GET, "^\\/" + PATH + "\\/.*", req -> req.response().sendFile(req.path().substring(1)));
-	return matcher;
-    }
+		setUpServer(matcher).listen();
+	}
 
-    private HttpServer setUpServer(RouteMatcher matcher) {
-	HttpServer server = vertx.createHttpServer(new HttpServerOptions().setPort(PORT)).requestHandler(req -> matcher.accept(req));
-	SockJSServer.sockJSServer(vertx, server).bridge(new SockJSServerOptions().setPrefix("/eventbus"),
-		new BridgeOptions().addInboundPermitted(new JsonObject()).addOutboundPermitted(new JsonObject()));
-	return server;
+	private RouteMatcher getRouteMatcher() {
+		RouteMatcher matcher = RouteMatcher.routeMatcher().matchMethod(HttpMethod.GET, "/",
+				req -> req.response().sendFile(PATH + "/" + WELCOME_PAGE));
+		matcher.matchMethod(HttpMethod.GET, "^\\/" + PATH + "\\/.*",
+				req -> req.response().sendFile(req.path().substring(1)));
+		return matcher;
+	}
 
-    }
+	private HttpServer setUpServer(RouteMatcher matcher) {
+		HttpServer server = vertx.createHttpServer(new HttpServerOptions().setPort(PORT)).requestHandler(
+				req -> matcher.accept(req));
+		SockJSServer.sockJSServer(vertx, server).bridge(new SockJSServerOptions().setPrefix("/eventbus"),
+				new BridgeOptions().addInboundPermitted(new JsonObject()).addOutboundPermitted(new JsonObject()));
+		return server;
 
-    private MongoService setUpMongo() {
-	DeploymentOptions options = new DeploymentOptions().setConfig(new JsonObject().put("address", MONGO_ADDRESS));
-	vertx.deployVerticle(new MongoServiceVerticle(), options, result -> System.out.println("Mongo deployed: " + result.succeeded()));
-	return MongoService.createEventBusProxy(vertx, MONGO_ADDRESS);
-    }
+	}
+
+	private MongoService setUpMongo() {
+		DeploymentOptions options = new DeploymentOptions().setConfig(new JsonObject().put("address", MONGO_ADDRESS));
+		vertx.deployVerticle(new MongoServiceVerticle(), options,
+				result -> System.out.println("Mongo deployed: " + result.succeeded()));
+		return MongoService.createEventBusProxy(vertx, MONGO_ADDRESS);
+	}
 
 }

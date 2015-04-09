@@ -8,17 +8,9 @@
 angular.module('resourcesApp').controller('MainCtrl',
 		function($scope, $resource) {
 			$scope.messages = $resource('/api/history').query();
-			var eb = new vertx.EventBus('http://'+window.location.host+ '/eventbus');
-			eb.onopen = function() {
-				eb.registerHandler('chat', function(message) {
-					//TODO: handle message
-					$scope.$apply();
-				});
-			}
 
 			$scope.sendMessage = function() {
 				$scope.message.date = Date.now();
-				eb.publish('chat', $scope.message);
-				$scope.message.text = "";
+				$scope.messages.push($scope.message);
 			};
 		});
