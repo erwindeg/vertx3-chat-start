@@ -59,17 +59,4 @@ public class MyJUnitTest {
 			async.complete();
 		});
 	}
-
-	@Test
-	public void testSendMessage(TestContext test) {
-		Async async = test.async();
-		vertx.eventBus().consumer("chat", message -> {
-			test.assertEquals("test message", 
-					((JsonObject) message.body()).getString("message"));
-			async.complete();
-		});
-		vertx.eventBus().publish("chat", 
-				new JsonObject("{\"message\": \"test message\"}"));
-
-	}
 }
