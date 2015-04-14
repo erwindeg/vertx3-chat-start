@@ -29,6 +29,7 @@ public class MainVerticle extends AbstractVerticle {
 	MongoService mongoService;
 
 	@Override
+	// tag::start[]
 	public void start() throws Exception {
 		RouteMatcher matcher = getRouteMatcher();
 		matcher.matchMethod(
@@ -38,7 +39,7 @@ public class MainVerticle extends AbstractVerticle {
 
 		setUpServer(matcher).listen();
 	}
-
+	//end::start[]
 	private RouteMatcher getRouteMatcher() {
 		RouteMatcher matcher = RouteMatcher.routeMatcher().matchMethod(HttpMethod.GET, "/",
 				req -> req.response().sendFile(PATH + "/" + WELCOME_PAGE));
