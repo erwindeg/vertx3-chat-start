@@ -1,0 +1,7 @@
+== Sample Asciidoc
+
+[source,java]
+.MainVerticle.java
+----
+include::MainVerticle.java[tags=start]
+----
